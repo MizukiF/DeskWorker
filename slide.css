@@ -1,0 +1,64 @@
+/* @theme slide */
+
+section {
+    background-color: #1e293b; /* 紺色系の背景 */
+    color: #ffffff; /* 白色のテキスト */
+    font-family: 'Helvetica', 'Arial', sans-serif; /* フォントを指定 */
+    text-align: center; /* 中央揃え */
+    line-height: 1.6;
+  }
+  
+  h1 {
+    font-size: 48px;
+    color: #e2e8f0; /* 落ち着いた明るめの色 */
+    margin-bottom: 0.5em;
+  }
+  
+  h2 {
+    font-size: 36px;
+    color: #cbd5e1; /* 少し淡い色 */
+    margin-bottom: 0.3em;
+  }
+  
+  h3 {
+    font-size: 24px;
+    color: #cbd5e1; /* 少し淡い色 */
+    margin-bottom: 0.5em;
+  }
+
+  h4 {
+    font-size: 14px;
+    color: #cbd5e1; /* 少し淡い色 */
+    margin-bottom: 0.5em;
+  } 
+
+  p {
+    font-size: 24px;
+    margin: 0.5em 0;
+  }
+  
+  a {
+    color: #60a5fa; /* 明るい青でリンクを目立たせる */
+    text-decoration: none;
+  }
+  
+  ul {
+    font-size: 24px;
+    text-align: left; /* 箇条書きを左揃え */
+    margin: 0 auto;
+    padding-left: 1.5em;
+  }
+  
+  code {
+    background-color: #334155; /* 深い青でコードを強調 */
+    color: #e2e8f0; /* コード内テキストを明るく */
+    padding: 0.2em 0.4em;
+    border-radius: 4px;
+  }
+  
+  footer {
+    font-size: 14px;
+    color: #94a3b8;
+    text-align: right;
+    margin-top: 2em;
+  }
