@@ -7,6 +7,11 @@ slideNumber: false
 title: "サンプル"
 ---
 
+# Musculoskeletal pain in desk worker
+* ## Over 30% of deskworker have experienced musculoskeletal pain
+* ## Lower back, shoulder, and neck pain account for more than XX%
+
+---
 # OAK-D Lite
 * ## RGB Camera + Stereo Depth Sensor
 * ## Edge AI Inference
