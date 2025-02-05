@@ -1,5 +1,8 @@
 # Depth AI Guide  
 
+## [documentation](https://docs.luxonis.com/software/)
+* [Spatial location calc](https://docs.luxonis.com/software/depthai/examples/spatial_location_calculator/)
+
 # Example
 
 ## First, import all necessary modules
@@ -99,6 +102,18 @@ with depthai.Device(pipeline) as device:
         if cv2.waitKey(1) == ord('q'):
             break
 
+---
+cam_rgb.setInterleaved(True)
+
+に設定すると、カメラのプレビュー出力がインタリーブ形式（YUVフォーマットなど）で出力されます。これにより、後続の処理が複雑になる可能性があります。具体的には、以下のような問題が発生する可能性があります：
+
+データ処理の複雑化: インタリーブ形式のデータを処理するためには、デインターレース処理が必要になることがあります。これにより、処理の複雑さが増し、パフォーマンスが低下する可能性があります。
+
+互換性の問題: 後続のネットワークや処理パイプラインがインタリーブ形式のデータをサポートしていない場合、エラーが発生する可能性があります。
+
+デバッグの困難さ: インタリーブ形式のデータは、デバッグや可視化が難しくなることがあります。特に、画像を直接表示したり保存したりする場合に問題が発生することがあります。
+
+したがって、インタリーブ形式を使用する必要がない場合は、setInterleaved(False) のままにしておく方が無難です。
 
 
 
