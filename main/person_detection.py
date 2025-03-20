@@ -3,113 +3,110 @@ import depthai as dai
 import blobconverter
 import numpy as np
 import time
-from datetime import datetime
 from collections import deque
 
 is_deskworking = False
 start_time = None
 break_time = None
-ref = deque(maxlen=5)
-flag_thresthold = 3
+ref = deque(maxlen=300)
+flag_thresthold = 100  # 'flag_threshold' の名前を統一
 
-
+# フレームの正規化
 def frameNorm(frame, bbox):
     normVals = np.full(len(bbox), frame.shape[0])
     normVals[::2] = frame.shape[1]
     return (np.clip(np.array(bbox), 0, 1) * normVals).astype(int)
 
-
+# 顔サイズが閾値以上かどうか判定する関数
 def bbsize(frame, xmin, ymin, xmax, ymax):
-
-    # バウンディングボックスの幅と高さを計算
     xlen = xmax - xmin
     ylen = ymax - ymin
     xratio = xlen / frame.shape[1]
     yratio = ylen / frame.shape[0]
     
-    # デバッグ用の出力
-    print(f"Image size: {frame.shape[1]}x{frame.shape[0]}")
-    print(f"Bounding box (normalized): {bbox}")
-    print(f"Bounding box (pixels): ({xmin}, {ymin}) to ({xmax}, {ymax})")
-    print(f"Width ratio: {xratio}, Height ratio: {yratio}")
-    
-    # 面積の比率で判定
-    if xratio > 0.2 and yratio > 0.3:
-        return True
-    else:
-        return False
+    # サイズ閾値を適切に調整する
+    return xratio > 0.1 and yratio > 0.15  # 例: 少し小さな顔も検出するように変更
 
+# 判定フラグの更新とチェック
+def check_flag(ref):
+    if len(ref) < flag_thresthold:
+        return None  # 判定できるデータが足りない場合は何もしない
+
+    last_flags = list(ref)[-flag_thresthold:]  # 直近の判定データ
+
+    if all(last_flags):  # True が連続
+        return "Start"
+    elif not any(last_flags):  # False が連続
+        return "Break"
+    return None
+
+# Pipeline の作成
 pipeline = dai.Pipeline()
 
+# カメラノード（RGBカメラ）
 cam = pipeline.create(dai.node.ColorCamera)
-cam.setPreviewSize(1080, 1080)
+cam.setPreviewSize(300, 300)
 cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
 cam.setInterleaved(False)
 cam.setBoardSocket(dai.CameraBoardSocket.RGB)
 
-cam_xout = pipeline.create(dai.node.XLinkOut)
-cam_xout.setStreamName("color")
-cam.preview.link(cam_xout.input)
+# 顔検出用の ImageManip ノード
+manip = pipeline.create(dai.node.ImageManip)
+manip.initialConfig.setResize(300, 300)
+manip.initialConfig.setFrameType(dai.RawImgFrame.Type.RGB888p)
+cam.preview.link(manip.inputImage)
 
-face_det_manip = pipeline.create(dai.node.ImageManip)
-face_det_manip.initialConfig.setResize(300, 300)
-face_det_manip.initialConfig.setFrameType(dai.RawImgFrame.Type.RGB888p)
-cam.preview.link(face_det_manip.inputImage)
+# MobileNetSSD 顔検出ネットワーク
+face_nn = pipeline.create(dai.node.MobileNetDetectionNetwork)
+face_nn.setConfidenceThreshold(0.5)
+face_nn.setBlobPath(blobconverter.from_zoo(name="face-detection-retail-0004", shaves=6))
+manip.out.link(face_nn.input)
 
-monoLeft = pipeline.create(dai.node.MonoCamera)
-monoLeft.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
-monoLeft.setBoardSocket(dai.CameraBoardSocket.LEFT)
+# 出力ノード（カメラ画像 & 検出結果）
+xout_video = pipeline.create(dai.node.XLinkOut)
+xout_video.setStreamName("video")
+cam.preview.link(xout_video.input)
 
-monoRight = pipeline.create(dai.node.MonoCamera)
-monoRight.setResolution(dai.MonoCameraProperties.SensorResolution.THE_400_P)
-monoRight.setBoardSocket(dai.CameraBoardSocket.RIGHT)
+xout_det = pipeline.create(dai.node.XLinkOut)
+xout_det.setStreamName("detections")
+face_nn.out.link(xout_det.input)
 
-stereo = pipeline.create(dai.node.StereoDepth)
-stereo.setDefaultProfilePreset(dai.node.StereoDepth.PresetMode.HIGH_DENSITY)
-stereo.setDepthAlign(dai.CameraBoardSocket.RGB)
-monoLeft.out.link(stereo.left)
-monoRight.out.link(stereo.right)
-
-# Spatial Detection network
-face_det_nn = pipeline.create(dai.node.MobileNetSpatialDetectionNetwork)
-face_det_nn.setBoundingBoxScaleFactor(0.8)
-face_det_nn.setDepthLowerThreshold(100)
-face_det_nn.setDepthUpperThreshold(5000)
-stereo.depth.link(face_det_nn.inputDepth)
-
-face_det_nn.setConfidenceThreshold(0.5)
-face_det_nn.setBlobPath(blobconverter.from_zoo(name="face-detection-retail-0004", shaves=6))
-face_det_manip.out.link(face_det_nn.input)
-
-face_det_xout = pipeline.create(dai.node.XLinkOut)
-face_det_xout.setStreamName("detection")
-face_det_nn.out.link(face_det_xout.input)
-
+# デバイスとパイプラインの開始
 with dai.Device(pipeline) as device:
-    device.startPipeline()
-    q_color = device.getOutputQueue("color", maxSize=4, blocking=False)
-    q_detection = device.getOutputQueue("detection", maxSize=4, blocking=False)
-    
+    q_video = device.getOutputQueue("video", maxSize=4, blocking=False)
+    q_det = device.getOutputQueue("detections", maxSize=4, blocking=False)
+
     while True:
-        in_color = q_color.tryGet()
-        in_detection = q_detection.tryGet()
+        frame = q_video.get().getCvFrame()
+        detections = q_det.tryGet()
         
-        if in_color is not None:
-            frame = in_color.getCvFrame()
-            
-        if in_detection is not None:
-            detections  = in_detection.detections
-            
-            for detection in detections:
+        detected = False
+
+        if detections is not None:
+            for detection in detections.detections:
                 bbox = frameNorm(frame, (detection.xmin, detection.ymin, detection.xmax, detection.ymax))
-                z_coord = detection.spatialCoordinates.z / 1000
                 
-                if bbsize(frame,bbox[0],bbox[1],bbox[2],bbox[3]):
-                    print("Detected")
-                    ref.append(True)
-                    
-                cv2.rectangle(frame, (bbox[0], bbox[1]), (bbox[2], bbox[3]), (255, 0, 0), 2)
-            cv2.imshow("preview", frame)
-          
-        if cv2.waitKey(2000) == ord('q'):
+                if bbsize(frame, bbox[0], bbox[1], bbox[2], bbox[3]):
+                    detected = True
+                    break
+                
+        ref.append(detected)
+        flag = check_flag(ref)
+    
+        if flag == "Start" and not is_deskworking:
+            start_time = time.time()
+            is_deskworking = True
+            print(f"Deskwork started at {time.strftime('%H:%M:%S', time.localtime(start_time))}")
+        
+        elif flag == "Break" and is_deskworking:
+            break_time = time.time()
+            is_deskworking = False
+            print(f"Deskwork breaked at {time.strftime('%H:%M:%S', time.localtime(break_time))}")
+
+        # 画像を表示
+        cv2.imshow("OAK-D Lite Face Detection", frame)
+
+        if cv2.waitKey(1) == ord('q'):
             break
+
+    cv2.destroyAllWindows()
