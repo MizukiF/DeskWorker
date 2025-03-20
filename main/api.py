@@ -4,6 +4,7 @@ import depthai as dai
 import blobconverter
 import numpy as np
 from pose import frame_norm
+from tools import *
 
 def create_pipeline(stereo):
     pipeline = dai.Pipeline()
@@ -143,4 +144,20 @@ def create_pipeline(stereo):
                 node.io['manip_cfg'].send(cfg)
                 node.io['manip_img'].send(img)
     """)
+    recognition_manip = pipeline.create(dai.node.ImageManip)
+    recognition_manip.initialConfig.setResize(60, 60)
+    recognition_manip.setWaitForConfigInput(True)
+    image_manip_script.outputs['manip_cfg'].link(recognition_manip.inputConfig)
+    image_manip_script.outputs['manip_img'].link(recognition_manip.inputImage)
     
+    # Second stange recognition NN
+    print("Creating recognition Neural Network...")
+    recognition_nn = pipeline.create(dai.node.NeuralNetwork)
+    recognition_nn.setBlobPath(blobconverter.from_zoo(name="head-pose-estimation-adas-0001", shaves=6))
+    recognition_manip.out.link(recognition_nn.input)
+
+    recognition_xout = pipeline.create(dai.node.XLinkOut)
+    recognition_xout.setStreamName("recognition")
+    recognition_nn.out.link(recognition_xout.input)    
+    
+    return pipeline
