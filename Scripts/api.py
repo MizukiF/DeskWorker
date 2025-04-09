@@ -13,7 +13,7 @@ def create_pipeline():
     # Color camera node (低解像度に設定)
     cam = pipeline.create(dai.node.ColorCamera)
     cam.setPreviewSize(640, 480)  # 解像度を640x480に設定
-    cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_720_P)
+    cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
     cam.setInterleaved(False)
     cam.setBoardSocket(dai.CameraBoardSocket.RGB)
     
