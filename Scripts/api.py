@@ -44,6 +44,11 @@ def create_pipeline(stereo):
         stereo = pipeline.create(dai.node.StereoDepth)
         stereo.setDefaultProfilePreset(dai.node.StereoDepth.PresetMode.HIGH_DENSITY)
         stereo.setDepthAlign(dai.CameraBoardSocket.RGB)
+        
+        stereo.setLeftRightCheck(True)  # 左右の整合性チェックを有効化
+        stereo.setSubpixel(True)       # サブピクセル精度を有効化
+        stereo.setExtendedDisparity(False)  # 拡張視差を無効化（近距離の精度向上）
+        
         monoLeft.out.link(stereo.left)
         monoRight.out.link(stereo.right)
         
